@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pediatric SIRS Calculator — คลินิกหมอนุ่น ภูเขียว</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun', 'Noto Sans Thai', sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh;display:flex;justify-content:center;padding:2rem 1rem}
+.container{max-width:680px;width:100%}
+.header{margin-bottom:1.5rem}
+h1{font-size:22px;font-weight:500;color:#1a1a18;margin-bottom:4px}
+.subtitle{font-size:13px;color:#5F5E5A}
+.card{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+label{font-size:13px;color:#5F5E5A;font-weight:500}
+input,select{height:40px;border-radius:8px;border:0.5px solid #b4b2a9;background:#fff;color:#1a1a18;font-size:15px;padding:0 12px;width:100%;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#888780;box-shadow:0 0 0 2px rgba(128,128,128,0.15)}
+.unit{font-size:11px;color:#888780;margin-top:2px}
+.ref-box{background:#f1efe8;border:0.5px solid #d3d1c7;border-radius:8px;padding:12px 14px;margin-bottom:1.25rem;display:none}
+.ref-title{font-size:12px;font-weight:500;color:#5F5E5A;margin-bottom:8px}
+.ref-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px}
+.ref-item{background:#fff;border-radius:6px;padding:6px 8px;border:0.5px solid #d3d1c7}
+.ref-label{color:#888780;font-size:11px}
+.ref-value{color:#1a1a18;font-weight:500;font-size:12px;margin-top:1px}
+.sirs-rule{font-size:13px;color:#444441;background:#f1efe8;border-radius:6px;padding:10px 12px;margin-bottom:1.25rem;line-height:1.7;border-left:3px solid #888780}
+.calc-btn{width:100%;height:46px;border-radius:8px;background:#1a1a18;border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:background 0.15s}
+.calc-btn:hover{background:#2c2c2a}
+.result{border-radius:12px;padding:16px;margin-top:1rem;display:none}
+.result.sirs-yes{background:#FAECE7;border:1px solid #D85A30}
+.result.sirs-no{background:#EAF3DE;border:1px solid #3B6D11}
+.result.sirs-partial{background:#FAEEDA;border:1px solid #BA7517}
+.result-header{font-size:17px;font-weight:500;margin-bottom:10px}
+.result-header.yes{color:#993C1D}
+.result-header.no{color:#27500A}
+.result-header.partial{color:#854F0B}
+.criteria-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.crit-row{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot.met{background:#D85A30}
+.dot.normal{background:#639922}
+.dot.na{background:#b4b2a9}
+.crit-text.met{color:#993C1D;font-weight:500}
+.crit-text.normal{color:#3B6D11}
+.crit-text.na{color:#888780}
+.result-note{font-size:13px;color:#444441;background:rgba(255,255,255,0.6);border-radius:6px;padding:8px 10px;line-height:1.6;margin-top:4px}
+.footer{font-size:11px;color:#888780;margin-top:1.5rem;line-height:1.7;text-align:center;border-top:0.5px solid #d3d1c7;padding-top:1rem}
+.footer a{color:#5F5E5A}
+.badge{display:inline-block;font-size:10px;background:#f1efe8;border:0.5px solid #d3d1c7;border-radius:4px;padding:2px 7px;color:#5F5E5A;margin-left:6px;vertical-align:middle}
+@media(max-width:480px){.form-grid{grid-template-columns:1fr}.field.full{grid-column:1}.ref-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Pediatric SIRS Calculator <span class="badge">v1.0</span></h1>
+    <p class="subtitle">ประเมินภาวะ Systemic Inflammatory Response Syndrome ในเด็ก · คลินิกหมอนุ่น ภูเขียว</p>
+  </div>
+
+  <div class="card">
+    <div class="form-grid">
+      <div class="field full">
+        <label>กลุ่มอายุ</label>
+        <select id="ageGroup" onchange="updateRef()">
+          <option value="">-- เลือกกลุ่มอายุ --</option>
+          <option value="newborn">Newborn (0–7 วัน)</option>
+          <option value="neonate">Neonate (1 สัปดาห์ – 1 เดือน)</option>
+          <option value="infant">Infant (1 เดือน – 1 ปี)</option>
+          <option value="toddler">Toddler (1–5 ปี)</option>
+          <option value="child">School-age child (6–12 ปี)</option>
+          <option value="adolescent">Adolescent (13–18 ปี)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>อุณหภูมิ (°C)</label>
+        <input type="number" id="temp" step="0.1" placeholder="37.0" min="30" max="42">
+        <div class="unit">rectal / axillary / tympanic</div>
+      </div>
+      <div class="field">
+        <label>Heart Rate (ครั้ง/นาที)</label>
+        <input type="number" id="hr" placeholder="120" min="20" max="300">
+      </div>
+      <div class="field">
+        <label>Respiratory Rate (ครั้ง/นาที)</label>
+        <input type="number" id="rr" placeholder="30" min="5" max="100">
+      </div>
+      <div class="field">
+        <label>WBC (×10³/µL) — ถ้ามี</label>
+        <input type="number" id="wbc" step="0.1" placeholder="ว่างได้ถ้าไม่มี" min="0" max="200">
+        <div class="unit">ไม่จำเป็น แต่ช่วยเพิ่มความแม่นยำ</div>
+      </div>
+    </div>
+
+    <div class="ref-box" id="refBox">
+      <div class="ref-title" id="refTitle"></div>
+      <div class="ref-row" id="refRow"></div>
+    </div>
+
+    <div class="sirs-rule">
+      <strong>เกณฑ์ SIRS ในเด็ก:</strong> ต้องมีอย่างน้อย 2 ข้อจาก 4 ข้อ โดย <u>ข้อ 1 (Temp) หรือ ข้อ 4 (WBC) ต้องเป็นหนึ่งในนั้นเสมอ</u>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">ประเมิน SIRS</button>
+
+    <div class="result" id="resultBox">
+      <div class="result-header" id="resultHeader"></div>
+      <div class="criteria-list" id="criteriaList"></div>
+      <div class="result-note" id="resultNote"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    อ้างอิง: Goldstein B, et al. <em>International pediatric sepsis consensus conference: definitions for sepsis and organ dysfunction in pediatrics.</em> Pediatr Crit Care Med. 2005;6(1):2–8.<br>
+    ใช้ประกอบการตัดสินใจทางคลินิก ไม่แทนการประเมินของแพทย์ · <a href="https://pubmed.ncbi.nlm.nih.gov/15636651/" target="_blank">PubMed</a>
+  </div>
+</div>
+
+<script>
+const CRITERIA = {
+  newborn:    {hr_high:180, rr:50,  temp_high:38.5, temp_low:36, wbc_high:34,   wbc_low:null, label:"Newborn (0–7 วัน)"},
+  neonate:    {hr_high:180, rr:40,  temp_high:38.5, temp_low:36, wbc_high:19.5, wbc_low:5,    label:"Neonate (1 สัปดาห์–1 เดือน)"},
+  infant:     {hr_high:180, rr:34,  temp_high:38.5, temp_low:36, wbc_high:17.5, wbc_low:5,    label:"Infant (1 เดือน–1 ปี)"},
+  toddler:    {hr_high:140, rr:22,  temp_high:38.5, temp_low:36, wbc_high:15.5, wbc_low:6,    label:"Toddler (1–5 ปี)"},
+  child:      {hr_high:130, rr:18,  temp_high:38.5, temp_low:36, wbc_high:13.5, wbc_low:4.5,  label:"School-age (6–12 ปี)"},
+  adolescent: {hr_high:110, rr:14,  temp_high:38.5, temp_low:36, wbc_high:11,   wbc_low:4.5,  label:"Adolescent (13–18 ปี)"}
+}
+
+function updateRef() {
+  const ag = document.getElementById('ageGroup').value
+  if (!ag) { document.getElementById('refBox').style.display='none'; return }
+  const c = CRITERIA[ag]
+  document.getElementById('refBox').style.display='block'
+  document.getElementById('refTitle').textContent = 'ค่าปกติ: ' + c.label + ' (Goldstein 2005)'
+  document.getElementById('refRow').innerHTML = `
+    <div class="ref-item"><div class="ref-label">Temp ปกติ</div><div class="ref-value">${c.temp_low}–${c.temp_high} °C</div></div>
+    <div class="ref-item"><div class="ref-label">HR ปกติ</div><div class="ref-value">&lt;${c.hr_high} /min</div></div>
+    <div class="ref-item"><div class="ref-label">RR ปกติ</div><div class="ref-value">&lt;${c.rr} /min</div></div>
+  `
+}
+
+function calculate() {
+  const ag = document.getElementById('ageGroup').value
+  const temp = parseFloat(document.getElementById('temp').value)
+  const hr = parseFloat(document.getElementById('hr').value)
+  const rr = parseFloat(document.getElementById('rr').value)
+  const wbcVal = document.getElementById('wbc').value
+  const wbc = wbcVal !== '' ? parseFloat(wbcVal) : null
+
+  if (!ag) { alert('กรุณาเลือกกลุ่มอายุก่อน'); return }
+
+  const c = CRITERIA[ag]
+  const rows = []
+  let count = 0
+  let tempMet = false, wbcMet = false
+
+  if (!isNaN(temp)) {
+    tempMet = temp > c.temp_high || temp < c.temp_low
+    if (tempMet) count++
+    const lbl = temp > c.temp_high ? 'ไข้สูง (>'+c.temp_high+'°C)' : temp < c.temp_low ? 'Hypothermia (<'+c.temp_low+'°C)' : 'ปกติ'
+    rows.push({cls: tempMet?'met':'normal', text:'1. Temp: '+temp.toFixed(1)+'°C — '+lbl})
+  } else {
+    rows.push({cls:'na', text:'1. Temperature — ไม่ได้กรอก'})
+  }
+
+  if (!isNaN(hr)) {
+    const hrMet = hr > c.hr_high
+    if (hrMet) count++
+    rows.push({cls: hrMet?'met':'normal', text:'2. Heart Rate: '+hr+' /min — '+(hrMet?'เร็วกว่าปกติ (>'+c.hr_high+')':'ปกติ (≤'+c.hr_high+')')})
+  } else {
+    rows.push({cls:'na', text:'2. Heart Rate — ไม่ได้กรอก'})
+  }
+
+  if (!isNaN(rr)) {
+    const rrMet = rr > c.rr
+    if (rrMet) count++
+    rows.push({cls: rrMet?'met':'normal', text:'3. Respiratory Rate: '+rr+' /min — '+(rrMet?'เร็วกว่าปกติ (>'+c.rr+')':'ปกติ (≤'+c.rr+')')})
+  } else {
+    rows.push({cls:'na', text:'3. Respiratory Rate — ไม่ได้กรอก'})
+  }
+
+  if (wbc !== null && !isNaN(wbc)) {
+    wbcMet = wbc > c.wbc_high || (c.wbc_low && wbc < c.wbc_low)
+    if (wbcMet) count++
+    const wlbl = wbc > c.wbc_high ? 'Leukocytosis (>'+c.wbc_high+')' : (c.wbc_low && wbc < c.wbc_low) ? 'Leukopenia (<'+c.wbc_low+')' : 'ปกติ'
+    rows.push({cls: wbcMet?'met':'normal', text:'4. WBC: '+wbc.toFixed(1)+'×10³/µL — '+wlbl})
+  } else {
+    rows.push({cls:'na', text:'4. WBC — ไม่ได้กรอก'})
+  }
+
+  const mandatoryMet = tempMet || wbcMet
+  const sirsPositive = count >= 2 && mandatoryMet
+
+  const box = document.getElementById('resultBox')
+  const header = document.getElementById('resultHeader')
+  const list = document.getElementById('criteriaList')
+  const noteEl = document.getElementById('resultNote')
+
+  box.className = 'result'
+  box.style.display = 'block'
+
+  if (sirsPositive) {
+    box.classList.add('sirs-yes')
+    header.className = 'result-header yes'
+    header.textContent = 'SIRS: เข้าเกณฑ์ (' + count + '/4 ข้อ)'
+    noteEl.textContent = 'แจ้งแพทย์ทันที · ประเมิน sepsis · พิจารณา sepsis workup (CBC, blood culture, LFT, BUN/Cr, lactate)'
+  } else if (count >= 2 && !mandatoryMet) {
+    box.classList.add('sirs-partial')
+    header.className = 'result-header partial'
+    header.textContent = 'ยังไม่ครบเกณฑ์ — มี ' + count + '/4 ข้อ แต่ขาด Temp หรือ WBC'
+    noteEl.textContent = 'มีหลายข้อผิดปกติ แต่ไม่ครบ SIRS เพราะต้องมี Temp หรือ WBC ผิดปกติร่วมด้วยเสมอ ติดตามอาการใกล้ชิด'
+  } else {
+    box.classList.add('sirs-no')
+    header.className = 'result-header no'
+    header.textContent = 'SIRS: ไม่เข้าเกณฑ์ (' + count + '/4 ข้อ)'
+    noteEl.textContent = 'ยังไม่เข้าเกณฑ์ SIRS ติดตาม vital signs ต่อเนื่อง'
+  }
+
+  list.innerHTML = rows.map(r =>
+    `<div class="crit-row"><div class="dot ${r.cls}"></div><div class="crit-text ${r.cls}">${r.text}</div></div>`
+  ).join('')
+
+  box.scrollIntoView({behavior:'smooth', block:'nearest'})
+}
+</script>
+</body>
+</html>
